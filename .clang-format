@@ -78,7 +78,7 @@ BinPackParameters: false
 BreakBeforeBinaryOperators: None
 
 # format C++11 braced lists like function calls
-Cpp11BracedListStyle: true
+Cpp11BracedListStyle: FunctionCall
 
 # remove empty lines
 KeepEmptyLinesAtTheStartOfBlocks: false
@@ -97,3 +97,6 @@ AlignConsecutiveAssignments: true
 
 # put all the variables/constants names on the same column
 AlignConsecutiveDeclarations: true
+IndentWidth: 4
+UseTab: Never
+SpaceBeforeCpp11BracedList: false
