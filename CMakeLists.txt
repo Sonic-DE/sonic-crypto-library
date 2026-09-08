@@ -17,17 +17,12 @@ set(QCA_LIB_PATCH_VERSION "11")
 
 set(CMAKE_MACOSX_RPATH OFF)
 
-option(BUILD_WITH_QT6 "Build with Qt 6" OFF)
 option(BUILD_TESTS "Create test" ON)
 option(BUILD_TOOLS "Compile mozcerts and qcatool" ON)
 set(BUILD_PLUGINS "auto" CACHE STRING "Plugins for building (also possible values: none, all and auto)")
 # BUILD_SHARED_LIBS is cmake variable. Need to change default value.
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 option(DEVELOPER_MODE "Special developer mode" OFF)
-
-if(QT6)
-	set(BUILD_WITH_QT6 ON)
-endif()
 
 if(APPLE)
   option(OSX_FRAMEWORK "Build a Mac OS X Framework" ON)
@@ -44,30 +39,16 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
 
-# Do not automatically link Qt executables to qtmain target on Windows.
-# QCA exucatables use console mode only. Not need to link against qtmain.lib.
-if(BUILD_WITH_QT6)
-  set(QT_MAJOR_VERSION 6)
-  message(STATUS "Building Qt 6 version")
-  find_package(Qt6 COMPONENTS Core Test Core5Compat REQUIRED)
-else()
-  set(QT_MAJOR_VERSION 5)
-  message(STATUS "Building Qt 5 version")
-  set(Qt5_NO_LINK_QTMAIN ON)
-  find_package(Qt5 5.14 REQUIRED Core)
-endif()
+set(QT_MAJOR_VERSION 6)
+find_package(Qt6 COMPONENTS Core Test REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 
 include(QcaMacro)
 include(GNUInstallDirs)
-if(BUILD_WITH_QT6)
-  set(QCA_QT_PC_VERSION "Qt6Core")
-  set(QCA_SUFFIX "qt6")
-else()
-  set(QCA_QT_PC_VERSION "Qt5Core")
-  set(QCA_SUFFIX "qt5")
-endif()
+
+set(QCA_QT_PC_VERSION "Qt6Core")
+set(QCA_SUFFIX "qt6")
 
 # QCA can be shared but plugins will be static
 # if Qt is static.
@@ -248,14 +229,6 @@ if(NOT WIN32)
     set(PKGCONFIG_CFLAGS "-I\${includedir}")
     set(PKGCONFIG_LIBS "-L\${libdir} -l${QCA_LIB_NAME}")
   endif()
-
-  if(NOT BUILD_WITH_QT6)
-    # qca2.pc uses absolute paths. So it must be there. Don't rellocate this.
-    configure_file("qca2.pc.cmake" "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/${QCA_PC_NAME}" @ONLY)
-    if(NOT DEVELOPER_MODE)
-      install(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/${QCA_PC_NAME}" DESTINATION ${PKGCONFIG_INSTALL_PREFIX})
-    endif()
-  endif()
 endif()
 
 # strip CMAKE_INSTALL_PREFIX in all paths
@@ -363,13 +336,6 @@ set( public_HEADERS
 set( qca_HEADERS ${private_HEADERS} ${public_HEADERS} )
 
 include_directories("${qca_INCLUDEDIR}/QtCrypto")
-
-if(NOT BUILD_WITH_QT6)
-  configure_file("crypto.prf.cmake" "${CMAKE_BINARY_DIR}/mkspecs/features/crypto.prf" @ONLY)
-  if(NOT DEVELOPER_MODE)
-    install(FILES "${CMAKE_BINARY_DIR}/mkspecs/features/crypto.prf" DESTINATION "${QCA_FEATURE_INSTALL_DIR}")
-  endif()
-endif()
 
 configure_file(man/qcatool.1 "${CMAKE_BINARY_DIR}/share/man/man1/${QCA_TOOL_NAME}.1" COPYONLY)
 if(NOT DEVELOPER_MODE)
@@ -486,13 +452,8 @@ if(NOT DEVELOPER_MODE)
     if(NOT QCA_SUFFIX)
 
       message("${ESCAPE}[31mYou don't have QCA_SUFFIX set. Please note that the recommended way of")
-      if(BUILD_WITH_QT6)
-        message("building Qt6 version of qca for Linux distributions is to set")
-        message("QCA_SUFFIX to qt6 (-DQCA_SUFFIX=qt6).")
-      else()
-        message("building Qt5 version of qca for Linux distributions is to set")
-        message("QCA_SUFFIX to qt5 (-DQCA_SUFFIX=qt5).")
-      endif()
+      message("building Qt6 version of qca for Linux distributions is to set")
+      message("QCA_SUFFIX to qt6 (-DQCA_SUFFIX=qt6).")
       message("${ESCAPE}[0m")
     endif()
   endif()

@@ -1,7 +1,4 @@
 find_package(Qt${QT_MAJOR_VERSION} REQUIRED Network)
-if(NOT BUILD_WITH_QT6)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Core_EXECUTABLE_COMPILE_FLAGS}")
-endif()
 add_subdirectory(aes-cmac)
 add_subdirectory(base64test)
 add_subdirectory(certtest)
