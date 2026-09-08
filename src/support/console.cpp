@@ -22,10 +22,13 @@
 
 #include "qca_safeobj.h"
 #include "qpipe.h"
+#include "secureencoding_p.h"
 
 #include <QMutex>
 #include <QPointer>
-#include <QTextCodec>
+#include <QStringConverter>
+#include <QStringDecoder>
+#include <QStringEncoder>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -742,8 +745,8 @@ public:
     int                         at;
     bool                        done;
     bool                        charMode;
-    QTextCodec                 *codec;
-    QTextCodec::ConverterState *encstate, *decstate;
+    QStringEncoder             *enc;
+    QStringDecoder             *dec;
 
     Private(ConsolePrompt *_q)
         : QObject(_q)
@@ -758,13 +761,8 @@ public:
         own_con = false;
         waiting = false;
 
-#ifdef Q_OS_WIN
-        codec = QTextCodec::codecForMib(106); // UTF-8
-#else
-        codec = QTextCodec::codecForLocale();
-#endif
-        encstate = nullptr;
-        decstate = nullptr;
+        enc = nullptr;
+        dec = nullptr;
     }
 
     ~Private() override
@@ -774,10 +772,10 @@ public:
 
     void reset()
     {
-        delete encstate;
-        encstate = nullptr;
-        delete decstate;
-        decstate = nullptr;
+        delete enc;
+        enc = nullptr;
+        delete dec;
+        dec = nullptr;
 
         console.stop();
         if (own_con) {
@@ -801,8 +799,13 @@ public:
         done     = false;
         charMode = _charMode;
 
-        encstate = new QTextCodec::ConverterState(QTextCodec::IgnoreHeader);
-        decstate = new QTextCodec::ConverterState(QTextCodec::IgnoreHeader);
+#ifdef Q_OS_WIN
+        enc = new QStringEncoder(QStringConverter::Utf8);
+        dec = new QStringDecoder(QStringConverter::Utf8);
+#else
+        enc = new QStringEncoder(QStringConverter::System);
+        dec = new QStringDecoder(QStringConverter::System);
+#endif
 
         if (!console.start(con, ConsoleReference::SecurityEnabled)) {
             reset();
@@ -818,7 +821,8 @@ public:
 
     void writeString(const QString &str)
     {
-        console.writeSecure(codec->fromUnicode(str.unicode(), str.length(), encstate));
+        const QByteArray encoded = enc->encode(str);
+        console.writeSecure(SecureArray(encoded));
     }
 
     // process each char.  internally store the result as utf16, which
@@ -867,16 +871,10 @@ public:
     void convertToUtf8()
     {
         // convert result from utf16 to utf8, securely
-        QTextCodec                *codec = QTextCodec::codecForMib(106);
-        QTextCodec::ConverterState cstate(QTextCodec::IgnoreHeader);
-        SecureArray                out;
-        const ushort              *ustr = reinterpret_cast<ushort *>(result.data());
-        const int                  len  = result.size() / sizeof(ushort);
-        for (int n = 0; n < len; ++n) {
-            QChar c(ustr[n]);
-            out += codec->fromUnicode(&c, 1, &cstate);
-        }
-        result = out;
+        QStringEncoder enc(QStringConverter::Utf8);
+        const int len = result.size() / sizeof(ushort);
+        const QStringView input(reinterpret_cast<const QChar *>(result.constData()), len);
+        result = Internal::encodeSecure(input, enc);
     }
 
 private Q_SLOTS:
@@ -888,7 +886,7 @@ private Q_SLOTS:
                 break;
 
             // convert to unicode and process
-            const QString str  = codec->toUnicode(buf.data(), 1, decstate);
+            const QString str  = dec->decode(QByteArrayView(buf.data(), 1));
             bool          quit = false;
             for (const QChar &c : str) {
                 if (!processChar(c)) {

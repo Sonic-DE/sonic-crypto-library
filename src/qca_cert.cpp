@@ -25,7 +25,6 @@
 #include "qcaprovider.h"
 
 #include <QFile>
-#include <QRegExp>
 #include <QRegularExpression>
 #include <QTextStream>
 #include <QUrl>
@@ -1394,7 +1393,8 @@ static bool cert_match_domain(const QString &certname, const QString &acedomain)
         const QString &p1 = parts_name[n];
         const QString &p2 = parts_compare[n];
 
-        if (!QRegExp(p1, Qt::CaseSensitive, QRegExp::Wildcard).exactMatch(p2))
+        const QString pattern = QRegularExpression::wildcardToRegularExpression(p1, QRegularExpression::NonPathWildcardConversion);
+        if (!QRegularExpression(pattern).match(p2).hasMatch())
             return false;
     }
 

@@ -67,11 +67,6 @@ int main(int argc, char **argv)
                 continue;
 
             name = list[2];
-            // make an output filename based on the name
-            // outname = name.replace(QRegExp("\\/"), "_")
-            //	.replace(QRegExp("\\s+"), "_")
-            //	.replace(QRegExp("[()]"), "=")
-            //	.replace(QRegExp(","), "_") + ".pem";
             continue;
         } else if (line == QLatin1String("CKA_VALUE MULTILINE_OCTAL")) {
             QByteArray buf;

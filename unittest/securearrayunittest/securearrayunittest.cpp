@@ -23,8 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <QStringEncoder>
 #include <QTest>
 #include <QtCrypto>
+
+#include "secureencoding_p.h"
 
 #ifdef QT_STATICPLUGIN
 #include "import_plugins.h"
@@ -38,6 +41,7 @@ private Q_SLOTS:
     void initTestCase();
     void cleanupTestCase();
     void testAll();
+    void testSecureEncoding();
 
 private:
     QCA::Initializer *m_init;
@@ -140,6 +144,30 @@ void SecureArrayUnitTest::testAll()
 
     // test for a possible problem with operator[]
     QVERIFY((secureArray[0] == (char)0x63));
+}
+
+void SecureArrayUnitTest::testSecureEncoding()
+{
+    QStringEncoder         encoder(QStringConverter::Utf8);
+    const QCA::SecureArray encoded = QCA::Internal::encodeSecure(QStringView(u"A€😀"), encoder);
+    QVERIFY(encoded.isSecure());
+    QVERIFY(!encoder.hasError());
+    QCOMPARE(encoded.toByteArray(), QByteArray("A\xE2\x82\xAC\xF0\x9F\x98\x80"));
+
+    QString highSurrogate;
+    highSurrogate.append(QChar(0xD83D));
+    QString lowSurrogate;
+    lowSurrogate.append(QChar(0xDE00));
+    QStringEncoder         splitEncoder(QStringConverter::Utf8);
+    const QCA::SecureArray firstHalf  = QCA::Internal::encodeSecure(QStringView(highSurrogate), splitEncoder);
+    const QCA::SecureArray secondHalf = QCA::Internal::encodeSecure(QStringView(lowSurrogate), splitEncoder);
+    QVERIFY(firstHalf.isEmpty());
+    QCOMPARE(secondHalf.toByteArray(), QByteArray("\xF0\x9F\x98\x80"));
+
+    QStringEncoder         latin1Encoder(QStringConverter::Latin1);
+    const QCA::SecureArray replacement = QCA::Internal::encodeSecure(QStringView(u"€"), latin1Encoder);
+    QVERIFY(latin1Encoder.hasError());
+    QVERIFY(!replacement.isEmpty());
 }
 
 QTEST_MAIN(SecureArrayUnitTest)
